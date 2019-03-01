@@ -129,7 +129,7 @@ unsigned char usbOpenDevice(usb_dev_handle **device, int vendor, char *vendorNam
           fprintf(stderr, "Warning: cannot query manufacturer for device: %s\n", usb_strerror());
         }else{
           errorCode = USB_ERROR_NOTFOUND;
-          if (verbose>1) fprintf(stderr, "seen device from vendor ->%s<-\n", string); 
+           //fprintf(stderr, "seen device from vendor ->%s<-\n", string); 
           if(strcmp(string, vendorName) == 0){
             len = usbGetStringAscii(handle, dev->descriptor.iProduct, 0x0409, string, sizeof(string));
             if(len < 0){
@@ -137,7 +137,7 @@ unsigned char usbOpenDevice(usb_dev_handle **device, int vendor, char *vendorNam
               fprintf(stderr, "Warning: cannot query product for device: %s\n", usb_strerror());
             }else{
               errorCode = USB_ERROR_NOTFOUND;
-              if (verbose>1) fprintf(stderr, "seen product ->%s<-\n", string); 
+               //fprintf(stderr, "seen product ->%s<-\n", string); 
               if(strcmp(string, productName) == 0) {
 		len = usbGetStringAscii(handle, dev->descriptor.iSerialNumber, 0x0409, serialNumberString, sizeof(serialNumberString));
 		if (len < 0) {
@@ -145,7 +145,6 @@ unsigned char usbOpenDevice(usb_dev_handle **device, int vendor, char *vendorNam
 		  fprintf(stderr, "Warning: cannot query serial number for device: %s\n", usb_strerror());
 		}else{
 		  errorCode = USB_ERROR_NOTFOUND;
-		  if (verbose>1) fprintf(stderr, "seen S/N ->%s<-\n", serialNumberString);
 		  if ((usbSerialID == NULL) || (strcmp(serialNumberString, usbSerialID) == 0)) {
 		    break;
 		  }
@@ -171,7 +170,6 @@ unsigned char usbOpenDevice(usb_dev_handle **device, int vendor, char *vendorNam
 void usbClose(usb_dev_handle * handle)
 {
 }
-
 void printBuffer(char * buffer, int length)
 {
 	int i;
@@ -188,7 +186,7 @@ double calculateFrequency(unsigned char * buffer) {
 	int HS_DIV = (buffer[0] & 0xE0) >> 5;
 	double fout = fXtall * RFREQ / ((N1 + 1) * HS_DIV_MAP[HS_DIV]);
 	
-	if (verbose > 1) {
+	if (verbose >= 2) {
 	   printf("RFREQ = %f\n", RFREQ);
 	   printf("N1 = %d\n", N1);
 	   printf("HS_DIV = %d\n", HS_DIV);
@@ -234,10 +232,7 @@ void getRegisters(usb_dev_handle *handle) {
 	unsigned char buffer[6];
 	int nBytes;
 
-	// nBytes = usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN, REQUEST_READ_REGISTERS, SI570_I2C_ADDR, 0, (char *)buffer, sizeof(buffer), 5000);
-	// Si570 i2c address varies
-	nBytes = usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN, REQUEST_READ_REGISTERS,
-							 i2cAddress, 0, (char *)buffer, sizeof(buffer), 5000);
+	nBytes = usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN, REQUEST_READ_REGISTERS, SI570_I2C_ADDR, 0, (char *)buffer, sizeof(buffer), 5000);
 
 	if (nBytes > 0) {
 		int i;
@@ -251,20 +246,17 @@ double getFrequency(usb_dev_handle *handle) {
 	unsigned char buffer[6];
 	int nBytes;
 
-	// nBytes = usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN, REQUEST_READ_REGISTERS, SI570_I2C_ADDR, 0, (char *)buffer, sizeof(buffer), 5000);
-	// Si570 i2c address varies
-	nBytes = usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN, REQUEST_READ_REGISTERS,
-							 i2cAddress, 0, (char *)buffer, sizeof(buffer), 5000);
+	nBytes = usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN, REQUEST_READ_REGISTERS, SI570_I2C_ADDR, 0, (char *)buffer, sizeof(buffer), 5000);
 
 	if (nBytes > 0) {
 		int i;
-		if (verbose>1) {
+		if (verbose >= 2) {
 			for (i=0; i < 6; i++) {
-				fprintf(stderr, "Register %d = %X (%d)\n", i + 7,  (unsigned char) buffer[i], (unsigned char) buffer[i]);
+				printf("Register %d = %X (%d)\n", i + 7,  (unsigned char) buffer[i], (unsigned char) buffer[i]);
 			}
 		}
-		if (verbose>1) fprintf(stderr, "Frequency: %f MHz\n", calculateFrequency(buffer) / multiplier);
 		return  calculateFrequency(buffer);
+		//printf("Frequency: %f MHz\n", calculateFrequency(buffer) / multiplier);
 	}
 	return 0.0;
 }
@@ -326,11 +318,11 @@ int calcDividers(double f, struct solution* solution)
 		solution->f0 = sols[imin].f0;
 		solution->RFREQ = sols[imin].f0 / fXtall;
 
-		if (verbose>1) {
-			fprintf(stderr, "solution->HS_DIV = %d\n", solution->HS_DIV);
-			fprintf(stderr, "solution->N1 = %d\n", solution->N1);
-			fprintf(stderr, "solution->f0 = %f\n", solution->f0);
-			fprintf(stderr, "solution->RFREQ = %f\n", solution->RFREQ);
+		if (verbose >= 2) {
+			printf("solution->HS_DIV = %d\n", solution->HS_DIV);
+			printf("solution->N1 = %d\n", solution->N1);
+			printf("solution->f0 = %f\n", solution->f0);
+			printf("solution->RFREQ = %f\n", solution->RFREQ);
 		}	
 
 		return 1;
@@ -356,7 +348,7 @@ void setFrequency(usb_dev_handle * handle, double frequency)
 	int index = 0;
 	double f = frequency * multiplier;
 	if (verbose)
-		fprintf(stderr, "Setting Si570 Frequency by registers to: %f\n", f);
+		printf("Setting Si570 Frequency by registers to: %f\n", f);
 	
 	struct solution theSolution;
 	calcDividers(f, &theSolution); 
@@ -378,9 +370,8 @@ void setFrequency(usb_dev_handle * handle, double frequency)
 	buffer[0] = theSolution.N1 / 4;
 	buffer[0] = buffer[0] + (theSolution.HS_DIV << 5);
 	
-	if (usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT, request,
-						value, index, buffer, sizeof(buffer), 5000)) {
-		if (verbose > 1) printBuffer(buffer, 2);
+	if (usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT, request, value, index, buffer, sizeof(buffer), 5000)) {
+		if (verbose >= 2) printBuffer(buffer, 2);
 		
 	} else {
 		fprintf(stderr, "Failed writing frequency to device\n");
@@ -398,14 +389,13 @@ void setFreqByValue(usb_dev_handle * handle, double frequency)
     
 	setLongWord(round(f * 2097152.0), buffer);
 	if (verbose) {
-		fprintf(stderr, "Setting Si570 Frequency by value to: %f\n", f);
-        if (verbose > 1)
+		printf("Setting Si570 Frequency by value to: %f\n", f);
+        if (verbose >= 2)
 		  printBuffer(buffer,4);
 	}
 
-	if (usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT, request,
-						value, index, buffer, sizeof(buffer), 5000)) {
-		if (verbose > 1) printBuffer(buffer, 2);
+	if (usb_control_msg(handle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT, request, value, index, buffer, sizeof(buffer), 5000)) {
+		if (verbose >= 2) printBuffer(buffer, 2);
 		
 	} else {
 		fprintf(stderr, "Failed setting frequency");
